@@ -24,9 +24,6 @@ async def set_commands(bot: Bot):
 
 
 async def main():
-    # Объявление и инициализация объектов бота и диспетчера
-
-
     # Регистрация хэндлеров
     register_handlers_common(dp)
     register_handlers_apply(dp)
