@@ -49,9 +49,15 @@ async def update_sheet(state: FSMContext):
     sheet.update_cell(row, 5, user_data['cv_link'])
 
 
-async def apply_start(message: types.Message):
-    await message.answer("Введите Ваше имя и фамилию:")
-    await ApplyForVacancy.waiting_for_full_name.set()
+async def apply_start(message: types.Message, state: FSMContext):
+    user_data = await state.get_data()
+    if message.from_user.id in user_data.values():
+        await message.answer("Введите оккупацию:")
+        await ApplyForVacancy.waiting_for_occupation.set()
+    else:
+        await message.answer("Введите Ваше имя и фамилию:")
+        await state.update_data(user_id=message.from_user.id)
+        await ApplyForVacancy.waiting_for_full_name.set()
 
 
 # Обратите внимание: есть второй аргумент
@@ -60,7 +66,6 @@ async def name_gotten(message: types.Message, state: FSMContext):
         await message.answer("Пожалуйста, введите корректную информацию")
         return
     await state.update_data(full_name=message.text.title())
-    # sheet.update_cell(row, 1, message.text.title())
     await message.answer("Введите Ваш Email:")
     await ApplyForVacancy.next()
 
@@ -78,7 +83,10 @@ async def email_gotten(message: types.Message, state: FSMContext):
 
 async def cv_gotten(message: types.Message, state: FSMContext):
     await state.update_data(cv_link=message.text)
-    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    keyboard = types.ReplyKeyboardMarkup()
+    # button1 = types.KeyboardButton(text = "Полный день")
+    # button2 = types.KeyboardButton(text = "Стажировка", callback_data="full_day")
+    # keyboard.add(button1, button2)
     keyboard.add("Полный день", "Стажировка")
     await message.answer("Теперь выберите тип занятости:", reply_markup=keyboard)
     await ApplyForVacancy.waiting_for_occupation.set()
@@ -122,7 +130,7 @@ async def vacancy_chosen(message: types.Message, state: FSMContext):
     await message.answer(f"Поздравляю, {user_data['full_name']}, Вы успешно подали заявку на "
                          f"вакансию '{message.text}'!\n", reply_markup=types.ReplyKeyboardRemove())
     await update_sheet(state)
-    await state.finish()
+    await ApplyForVacancy.waiting_for_test_to_end.set()
 
 
 async def internship_chosen(message: types.Message, state: FSMContext):
@@ -130,11 +138,13 @@ async def internship_chosen(message: types.Message, state: FSMContext):
         await message.answer("Пожалуйста, выберите стажировку из списка:")
         return
     user_data = await state.get_data()
-    await state.update_data(chosen_vacancy=message.text.capitalize())
+    await state.update_data(chosen_vacancy=message.text)
     await message.answer(f"Поздравляю, {user_data['full_name']}, Вы успешно подали заявку на "
                          f"вакансию '{message.text}'!\n", reply_markup=types.ReplyKeyboardRemove())
     await update_sheet(state)
     await state.finish()
+
+# async def test_completed(message)
 
 
 def register_handlers_apply(dp: Dispatcher):
@@ -146,3 +156,4 @@ def register_handlers_apply(dp: Dispatcher):
     dp.register_message_handler(internship_chosen, state=ApplyForVacancy.waiting_for_internship)
     dp.register_message_handler(occupation_chosen, state=ApplyForVacancy.waiting_for_occupation)
     dp.register_message_handler(cv_gotten, state=ApplyForVacancy.waiting_for_cv)
+    # dp.register_message_handler(app.handlers.tests.test, state=ApplyForVacancy.waiting_for_test_to_end)
